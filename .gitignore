@@ -1,0 +1,11 @@
+# built binary
+/diceroll
+/bin/
+/dist/
+
+# go tooling
+*.test
+*.out
+
+# os cruft
+.DS_Store
