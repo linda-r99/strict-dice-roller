@@ -31,7 +31,16 @@ $ diceroll --count 3 --quiet 2d6
 7
 9
 4
+
+$ diceroll 6d6!
+[3 6+4 2 6+6+1 5 1] = 34
 ```
+
+A `!` after the side count makes the dice explode: any die that rolls its
+maximum face rolls again, and the extra roll adds to that die's total
+instead of ending it there. A chain can explode more than once, shown above
+as `6+6+1`. Explosion is capped at `dice.MaxExplosionChain` rolls per die so
+a run of maximum rolls can't loop forever.
 
 Strict mode rejects notation that a human might type casually but that a
 parser shouldn't have to guess about:
@@ -52,14 +61,16 @@ $ diceroll --lenient '2d6 + 3'
 ```
 expression := term (('+' | '-') term)*
 term       := dice | integer
-dice       := count 'd' sides [modifier]
+dice       := count 'd' sides ['!'] [modifier]
 modifier   := ('kh' | 'kl' | 'dh' | 'dl') count
 ```
 
 - `count` is the number of dice rolled (1-1000).
 - `sides` is the number of faces per die (2-10000).
+- `!` makes the dice explode (see above).
 - `kh`/`kl` keep the highest/lowest N rolls and discard the rest; `dh`/`dl`
-  drop the highest/lowest N and keep the rest.
+  drop the highest/lowest N and keep the rest. Keep/drop compares dice by
+  their total after explosion, not by the value of their first roll.
 - A bare integer (e.g. the `+3` in `1d20+3`) is a flat modifier.
 
 In strict mode (the default):

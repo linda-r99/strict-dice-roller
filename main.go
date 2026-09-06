@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s 3d6\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s 1d20+5\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s 4d6kh3\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s 6d6!\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --lenient '2d6 + 1d4'\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "\nflags:")
 		flag.PrintDefaults()
@@ -83,8 +85,9 @@ func printResult(result dice.Result, quiet bool) {
 }
 
 // describeTerm renders one term's contribution, e.g. ("+", "[4 2 6]") or
-// ("+", "[5 3 6] (dropped [1])"). The sign is returned separately so the
-// caller can omit it for the leading term.
+// ("+", "[5 3 6] (dropped [1])"). An exploded die's chain is joined with
+// "+", e.g. "[6+6+2 4 3]". The sign is returned separately so the caller
+// can omit it for the leading term.
 func describeTerm(tr dice.TermResult) (sign, body string) {
 	if tr.Const != nil {
 		sign = "+"
@@ -99,7 +102,26 @@ func describeTerm(tr dice.TermResult) (sign, body string) {
 		sign = "-"
 	}
 	if len(tr.Dropped) == 0 {
-		return sign, fmt.Sprintf("%v", tr.Rolls)
+		return sign, formatChains(tr.Chains)
 	}
-	return sign, fmt.Sprintf("%v (dropped %v)", tr.Kept, tr.Dropped)
+	return sign, fmt.Sprintf("%s (dropped %s)", formatChains(tr.Kept), formatChains(tr.Dropped))
+}
+
+func formatChains(chains [][]int) string {
+	parts := make([]string, len(chains))
+	for i, chain := range chains {
+		parts[i] = formatChain(chain)
+	}
+	return "[" + strings.Join(parts, " ") + "]"
+}
+
+func formatChain(chain []int) string {
+	if len(chain) == 1 {
+		return strconv.Itoa(chain[0])
+	}
+	parts := make([]string, len(chain))
+	for i, v := range chain {
+		parts[i] = strconv.Itoa(v)
+	}
+	return strings.Join(parts, "+")
 }

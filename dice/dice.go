@@ -1,5 +1,5 @@
-// Package dice parses dice notation such as "3d6+2" or "4d6kh3" into a
-// structure that can be rolled.
+// Package dice parses dice notation such as "3d6+2", "4d6kh3", or "6d6!"
+// into a structure that can be rolled.
 //
 // Parsing is strict by default: a single die separator case, no implicit
 // dice counts, no leading zeros, no stray whitespace. The lenient flag
@@ -31,6 +31,11 @@ const (
 	MaxDiceCount = 1000
 	MaxSides     = 10000
 	MaxConstant  = 1000000
+
+	// MaxExplosionChain caps how many times a single die can explode.
+	// Real rolls never get close to this; it exists so a die that always
+	// comes up max under a given seed still terminates.
+	MaxExplosionChain = 100
 )
 
 // DiceTerm is a single dice group, e.g. "4d6kh3", with its sign within the
@@ -39,6 +44,7 @@ type DiceTerm struct {
 	Sign     int
 	Count    int
 	Sides    int
+	Explode  bool
 	Mod      ModKind
 	ModCount int
 }
@@ -186,7 +192,13 @@ func parseTerm(sign int, text string, lenient bool) (Term, error) {
 		return Term{}, fmt.Errorf("side count %d is out of range (2-%d)", sides, MaxSides)
 	}
 
-	dt := &DiceTerm{Sign: sign, Count: count, Sides: sides, Mod: ModNone}
+	explode := false
+	if strings.HasPrefix(modSpec, "!") {
+		explode = true
+		modSpec = modSpec[1:]
+	}
+
+	dt := &DiceTerm{Sign: sign, Count: count, Sides: sides, Explode: explode, Mod: ModNone}
 	if modSpec != "" {
 		mod, modCount, err := parseModifier(modSpec, count, lenient)
 		if err != nil {

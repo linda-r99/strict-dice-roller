@@ -14,6 +14,10 @@ func constTerm(sign, value int) Term {
 	return Term{Const: &ConstTerm{Sign: sign, Value: value}}
 }
 
+func explodingDiceTerm(sign, count, sides int, mod ModKind, modCount int) Term {
+	return Term{Dice: &DiceTerm{Sign: sign, Count: count, Sides: sides, Explode: true, Mod: mod, ModCount: modCount}}
+}
+
 func TestParseValid(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -33,6 +37,9 @@ func TestParseValid(t *testing.T) {
 		{"min sides", "1d2", false, []Term{diceTerm(1, 1, 2, ModNone, 0)}},
 		{"max count and sides", "1000d10000", false, []Term{diceTerm(1, 1000, 10000, ModNone, 0)}},
 		{"max constant", "1000000", false, []Term{constTerm(1, 1000000)}},
+		{"exploding die", "1d6!", false, []Term{explodingDiceTerm(1, 1, 6, ModNone, 0)}},
+		{"exploding with count", "6d6!", false, []Term{explodingDiceTerm(1, 6, 6, ModNone, 0)}},
+		{"exploding with keep high", "4d6!kh3", false, []Term{explodingDiceTerm(1, 4, 6, ModKeepHigh, 3)}},
 
 		{"lenient implicit count", "d6", true, []Term{diceTerm(1, 1, 6, ModNone, 0)}},
 		{"lenient uppercase d", "D6", true, []Term{diceTerm(1, 1, 6, ModNone, 0)}},
@@ -92,6 +99,8 @@ func TestParseInvalid(t *testing.T) {
 		{"non-numeric dice count", "abcd6", false, "not a plain number"},
 		{"non-numeric modifier count", "4d6khx", false, "not a plain number"},
 		{"constant too high", "1000001", false, "out of range"},
+		{"double bang", "1d6!!", false, "not a valid modifier"},
+		{"bang after modifier", "1d6kh1!", false, "not a plain number"},
 	}
 
 	for _, c := range cases {
