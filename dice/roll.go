@@ -52,7 +52,7 @@ func rollTerm(term Term, rng *rand.Rand) TermResult {
 	chains := make([][]int, dt.Count)
 	values := make([]int, dt.Count)
 	for i := range chains {
-		chain := rollChain(dt.Sides, dt.Explode, rng)
+		chain := rollChain(dt.Sides, dt.Fudge, dt.Explode, rng)
 		chains[i] = chain
 		sum := 0
 		for _, v := range chain {
@@ -87,10 +87,20 @@ type intSource interface {
 // appending while the most recent roll came up the maximum face. The chain
 // is capped at MaxExplosionChain rolls so a pathological seed can't spin
 // forever.
-func rollChain(sides int, explode bool, rng intSource) []int {
-	chain := []int{rng.Intn(sides) + 1}
-	for explode && chain[len(chain)-1] == sides && len(chain) < MaxExplosionChain {
-		chain = append(chain, rng.Intn(sides)+1)
+//
+// A fudge die has three faces (-1, 0, 1) instead of sides faces numbered
+// from 1, so sides is ignored when fudge is set.
+func rollChain(sides int, fudge, explode bool, rng intSource) []int {
+	max := sides
+	roll := func() int { return rng.Intn(sides) + 1 }
+	if fudge {
+		max = 1
+		roll = func() int { return rng.Intn(3) - 1 }
+	}
+
+	chain := []int{roll()}
+	for explode && chain[len(chain)-1] == max && len(chain) < MaxExplosionChain {
+		chain = append(chain, roll())
 	}
 	return chain
 }

@@ -25,6 +25,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s 1d20+5\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s 4d6kh3\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s 6d6!\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s 4dF\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --lenient '2d6 + 1d4'\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "\nflags:")
 		flag.PrintDefaults()

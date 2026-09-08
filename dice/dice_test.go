@@ -18,6 +18,14 @@ func explodingDiceTerm(sign, count, sides int, mod ModKind, modCount int) Term {
 	return Term{Dice: &DiceTerm{Sign: sign, Count: count, Sides: sides, Explode: true, Mod: mod, ModCount: modCount}}
 }
 
+func fudgeDiceTerm(sign, count int, mod ModKind, modCount int) Term {
+	return Term{Dice: &DiceTerm{Sign: sign, Count: count, Fudge: true, Mod: mod, ModCount: modCount}}
+}
+
+func explodingFudgeDiceTerm(sign, count int, mod ModKind, modCount int) Term {
+	return Term{Dice: &DiceTerm{Sign: sign, Count: count, Fudge: true, Explode: true, Mod: mod, ModCount: modCount}}
+}
+
 func TestParseValid(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -40,6 +48,11 @@ func TestParseValid(t *testing.T) {
 		{"exploding die", "1d6!", false, []Term{explodingDiceTerm(1, 1, 6, ModNone, 0)}},
 		{"exploding with count", "6d6!", false, []Term{explodingDiceTerm(1, 6, 6, ModNone, 0)}},
 		{"exploding with keep high", "4d6!kh3", false, []Term{explodingDiceTerm(1, 4, 6, ModKeepHigh, 3)}},
+		{"fudge dice", "4dF", false, []Term{fudgeDiceTerm(1, 4, ModNone, 0)}},
+		{"single fudge die", "1dF", false, []Term{fudgeDiceTerm(1, 1, ModNone, 0)}},
+		{"fudge dice keep high", "4dFkh3", false, []Term{fudgeDiceTerm(1, 4, ModKeepHigh, 3)}},
+		{"exploding fudge dice", "4dF!", false, []Term{explodingFudgeDiceTerm(1, 4, ModNone, 0)}},
+		{"fudge dice plus constant", "4dF+1", false, []Term{fudgeDiceTerm(1, 4, ModNone, 0), constTerm(1, 1)}},
 
 		{"lenient implicit count", "d6", true, []Term{diceTerm(1, 1, 6, ModNone, 0)}},
 		{"lenient uppercase d", "D6", true, []Term{diceTerm(1, 1, 6, ModNone, 0)}},
@@ -48,6 +61,8 @@ func TestParseValid(t *testing.T) {
 		{"lenient uppercase modifier", "4d6KH3", true, []Term{diceTerm(1, 4, 6, ModKeepHigh, 3)}},
 		{"lenient implicit modifier count", "4d6kh", true, []Term{diceTerm(1, 4, 6, ModKeepHigh, 1)}},
 		{"lenient leading plus", "+1d6", true, []Term{diceTerm(1, 1, 6, ModNone, 0)}},
+		{"lenient lowercase fudge specifier", "4df", true, []Term{fudgeDiceTerm(1, 4, ModNone, 0)}},
+		{"lenient implicit fudge count", "dF", true, []Term{fudgeDiceTerm(1, 1, ModNone, 0)}},
 	}
 
 	for _, c := range cases {
@@ -101,6 +116,7 @@ func TestParseInvalid(t *testing.T) {
 		{"constant too high", "1000001", false, "out of range"},
 		{"double bang", "1d6!!", false, "not a valid modifier"},
 		{"bang after modifier", "1d6kh1!", false, "not a plain number"},
+		{"strict lowercase fudge specifier rejected", "4df", false, "--lenient"},
 	}
 
 	for _, c := range cases {

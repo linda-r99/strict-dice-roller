@@ -34,6 +34,9 @@ $ diceroll --count 3 --quiet 2d6
 
 $ diceroll 6d6!
 [3 6+4 2 6+6+1 5 1] = 34
+
+$ diceroll 4dF
+[1 -1 0 1] = 1
 ```
 
 A `!` after the side count makes the dice explode: any die that rolls its
@@ -41,6 +44,15 @@ maximum face rolls again, and the extra roll adds to that die's total
 instead of ending it there. A chain can explode more than once, shown above
 as `6+6+1`. Explosion is capped at `dice.MaxExplosionChain` rolls per die so
 a run of maximum rolls can't loop forever.
+
+`F` in place of a side count rolls fudge/fate dice: each die comes up -1, 0,
+or 1 instead of a face number, and the total is the sum. `4dF` is the usual
+notation for a fate roll.
+
+```
+$ diceroll 4dF+2
+[1 -1 0 1] + 2 = 3
+```
 
 Strict mode rejects notation that a human might type casually but that a
 parser shouldn't have to guess about:
@@ -61,13 +73,14 @@ $ diceroll --lenient '2d6 + 3'
 ```
 expression := term (('+' | '-') term)*
 term       := dice | integer
-dice       := count 'd' sides ['!'] [modifier]
+dice       := count 'd' (sides | 'F') ['!'] [modifier]
 modifier   := ('kh' | 'kl' | 'dh' | 'dl') count
 ```
 
 - `count` is the number of dice rolled (1-1000).
-- `sides` is the number of faces per die (2-10000).
-- `!` makes the dice explode (see above).
+- `sides` is the number of faces per die (2-10000), or `F` for fudge dice.
+- `!` makes the dice explode (see above). On fudge dice, a die explodes when
+  it rolls 1, its highest face.
 - `kh`/`kl` keep the highest/lowest N rolls and discard the rest; `dh`/`dl`
   drop the highest/lowest N and keep the rest. Keep/drop compares dice by
   their total after explosion, not by the value of their first roll.
@@ -77,6 +90,7 @@ In strict mode (the default):
 
 - no whitespace anywhere in the notation
 - `d` must be lowercase; `D` is rejected
+- the fudge specifier must be uppercase (`4dF`); `4df` is rejected
 - dice counts and modifier counts must be written explicitly (`1d6`, `kh1`,
   never `d6` or `kh`)
 - no leading zeros on any number

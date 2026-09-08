@@ -26,34 +26,34 @@ func (alwaysMax) Intn(n int) int { return n - 1 }
 
 func TestRollChainNoExplode(t *testing.T) {
 	rng := &fixedSeq{values: []int{2}}
-	got := rollChain(6, false, rng)
+	got := rollChain(6, false, false, rng)
 	want := []int{3}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("rollChain(6, false, ...) = %v, want %v", got, want)
+		t.Errorf("rollChain(6, false, false, ...) = %v, want %v", got, want)
 	}
 }
 
 func TestRollChainExplodes(t *testing.T) {
 	// 0-indexed Intn results 5, 5, 1 => rolls 6, 6, 2 on a d6.
 	rng := &fixedSeq{values: []int{5, 5, 1}}
-	got := rollChain(6, true, rng)
+	got := rollChain(6, false, true, rng)
 	want := []int{6, 6, 2}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("rollChain(6, true, ...) = %v, want %v", got, want)
+		t.Errorf("rollChain(6, false, true, ...) = %v, want %v", got, want)
 	}
 }
 
 func TestRollChainDoesNotExplodeOnNonMax(t *testing.T) {
 	rng := &fixedSeq{values: []int{3}}
-	got := rollChain(6, true, rng)
+	got := rollChain(6, false, true, rng)
 	want := []int{4}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("rollChain(6, true, ...) = %v, want %v", got, want)
+		t.Errorf("rollChain(6, false, true, ...) = %v, want %v", got, want)
 	}
 }
 
 func TestRollChainCapsAtMaxExplosionChain(t *testing.T) {
-	got := rollChain(2, true, alwaysMax{})
+	got := rollChain(2, false, true, alwaysMax{})
 	if len(got) != MaxExplosionChain {
 		t.Fatalf("len(rollChain) = %d, want %d", len(got), MaxExplosionChain)
 	}
@@ -61,6 +61,27 @@ func TestRollChainCapsAtMaxExplosionChain(t *testing.T) {
 		if v != 2 {
 			t.Errorf("chain value = %d, want 2", v)
 		}
+	}
+}
+
+func TestRollChainFudgeNoExplode(t *testing.T) {
+	// 0-indexed Intn(3) results 0, 1, 2 => fudge faces -1, 0, 1.
+	for i, want := range []int{-1, 0, 1} {
+		rng := &fixedSeq{values: []int{i}}
+		got := rollChain(0, true, false, rng)
+		if !reflect.DeepEqual(got, []int{want}) {
+			t.Errorf("rollChain(0, true, false, ...) with Intn=%d = %v, want [%d]", i, got, want)
+		}
+	}
+}
+
+func TestRollChainFudgeExplodes(t *testing.T) {
+	// 0-indexed Intn(3) results 2, 2, 0 => fudge faces 1, 1, -1.
+	rng := &fixedSeq{values: []int{2, 2, 0}}
+	got := rollChain(0, true, true, rng)
+	want := []int{1, 1, -1}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rollChain(0, true, true, ...) = %v, want %v", got, want)
 	}
 }
 

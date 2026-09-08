@@ -1,5 +1,5 @@
-// Package dice parses dice notation such as "3d6+2", "4d6kh3", or "6d6!"
-// into a structure that can be rolled.
+// Package dice parses dice notation such as "3d6+2", "4d6kh3", "6d6!", or
+// "4dF" into a structure that can be rolled.
 //
 // Parsing is strict by default: a single die separator case, no implicit
 // dice counts, no leading zeros, no stray whitespace. The lenient flag
@@ -40,10 +40,14 @@ const (
 
 // DiceTerm is a single dice group, e.g. "4d6kh3", with its sign within the
 // enclosing expression.
+//
+// Fudge dice (4dF) report their roll as -1, 0, or 1 instead of a face count,
+// so Sides is meaningless when Fudge is set.
 type DiceTerm struct {
 	Sign     int
 	Count    int
 	Sides    int
+	Fudge    bool
 	Explode  bool
 	Mod      ModKind
 	ModCount int
@@ -180,16 +184,31 @@ func parseTerm(sign int, text string, lenient bool) (Term, error) {
 		return Term{}, fmt.Errorf("dice count %d is out of range (1-%d)", count, MaxDiceCount)
 	}
 
-	sidesStr, modSpec := scanDigits(rest)
-	if sidesStr == "" {
-		return Term{}, fmt.Errorf("%q is missing a number of sides after %q", text, "d")
+	fudge := false
+	var sidesStr, modSpec string
+	if len(rest) > 0 && (rest[0] == 'F' || rest[0] == 'f') {
+		if rest[0] == 'f' && !lenient {
+			return Term{}, fmt.Errorf("strict mode: fudge die specifier must be uppercase %q, not %q (try --lenient)", "F", text)
+		}
+		fudge = true
+		modSpec = rest[1:]
+	} else {
+		sidesStr, modSpec = scanDigits(rest)
+		if sidesStr == "" {
+			return Term{}, fmt.Errorf("%q is missing a number of sides after %q", text, "d")
+		}
 	}
-	sides, err := parseNumber(sidesStr, lenient, "side count")
-	if err != nil {
-		return Term{}, err
-	}
-	if sides < 2 || sides > MaxSides {
-		return Term{}, fmt.Errorf("side count %d is out of range (2-%d)", sides, MaxSides)
+
+	sides := 0
+	if !fudge {
+		n, err := parseNumber(sidesStr, lenient, "side count")
+		if err != nil {
+			return Term{}, err
+		}
+		sides = n
+		if sides < 2 || sides > MaxSides {
+			return Term{}, fmt.Errorf("side count %d is out of range (2-%d)", sides, MaxSides)
+		}
 	}
 
 	explode := false
@@ -198,7 +217,7 @@ func parseTerm(sign int, text string, lenient bool) (Term, error) {
 		modSpec = modSpec[1:]
 	}
 
-	dt := &DiceTerm{Sign: sign, Count: count, Sides: sides, Explode: explode, Mod: ModNone}
+	dt := &DiceTerm{Sign: sign, Count: count, Sides: sides, Fudge: fudge, Explode: explode, Mod: ModNone}
 	if modSpec != "" {
 		mod, modCount, err := parseModifier(modSpec, count, lenient)
 		if err != nil {
