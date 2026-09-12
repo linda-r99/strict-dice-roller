@@ -25,6 +25,23 @@ const (
 	ModDropLow
 )
 
+// String returns the notation spelling of the modifier ("kh", "kl", "dh",
+// "dl"), or "" for ModNone.
+func (m ModKind) String() string {
+	switch m {
+	case ModKeepHigh:
+		return "kh"
+	case ModKeepLow:
+		return "kl"
+	case ModDropHigh:
+		return "dh"
+	case ModDropLow:
+		return "dl"
+	default:
+		return ""
+	}
+}
+
 // Bounds on counts and sides. These apply in both strict and lenient mode;
 // lenient only relaxes formatting rules, not resource limits.
 const (

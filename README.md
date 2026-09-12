@@ -54,6 +54,20 @@ $ diceroll 4dF+2
 [1 -1 0 1] + 2 = 3
 ```
 
+`--format=json` prints one JSON object per roll instead of the text
+breakdown, for scripts that want the individual rolls without re-parsing
+the text output:
+
+```
+$ diceroll --format=json 4d6kh3
+{"total":14,"terms":[{"type":"dice","sign":1,"subtotal":14,"count":4,"sides":6,"mod":"kh","mod_count":3,"kept":[[5],[3],[6]],"dropped":[[1]]}]}
+```
+
+A term's `chains` field lists one entry per die rolled, in original roll
+order; a die that exploded has more than one value in its chain, e.g.
+`[6,6,2]`. Terms with a keep/drop modifier report `kept` and `dropped`
+instead of `chains`.
+
 Strict mode rejects notation that a human might type casually but that a
 parser shouldn't have to guess about:
 
@@ -105,6 +119,8 @@ on dice count, sides, or constants - those apply either way.
   (default: derived from the current time).
 - `--count N` - roll the expression N times (default: 1).
 - `--quiet` - print only the total for each roll, one per line.
+- `--format text|json` - output format (default: `text`). `json` is
+  incompatible with `--quiet`.
 
 ## Build
 
