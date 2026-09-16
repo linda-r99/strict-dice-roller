@@ -121,6 +121,19 @@ on dice count, sides, or constants - those apply either way.
 - `--quiet` - print only the total for each roll, one per line.
 - `--format text|json` - output format (default: `text`). `json` is
   incompatible with `--quiet`.
+- `--completion bash|zsh` - print a shell completion script for the named
+  shell and exit.
+
+## Shell completion
+
+```
+$ diceroll --completion=bash > /etc/bash_completion.d/diceroll
+$ diceroll --completion=zsh > "${fpath[1]}/_diceroll"
+```
+
+Both scripts complete flag names and, for `--format` and `--completion`,
+their valid values. They're generated from the same flag definitions the
+program itself parses, so they can't fall out of sync with `--help`.
 
 ## Build
 

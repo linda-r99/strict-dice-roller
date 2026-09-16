@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"strict-dice-roller/dice"
@@ -146,5 +147,65 @@ func TestPrintResultJSONRoundTrips(t *testing.T) {
 	}
 	if len(term.Kept) != 3 || len(term.Dropped) != 1 {
 		t.Errorf("term.Kept=%v term.Dropped=%v, want 3 and 1", term.Kept, term.Dropped)
+	}
+}
+
+func TestCompletionScriptUnknownShell(t *testing.T) {
+	if _, err := completionScript("fish"); err == nil {
+		t.Error("completionScript(\"fish\") = nil error, want an error for an unsupported shell")
+	}
+}
+
+func TestCompletionScriptKnownShells(t *testing.T) {
+	for _, shell := range []string{"bash", "zsh"} {
+		script, err := completionScript(shell)
+		if err != nil {
+			t.Fatalf("completionScript(%q): %v", shell, err)
+		}
+		for _, name := range []string{"--lenient", "--seed", "--count", "--quiet", "--format", "--completion"} {
+			if !strings.Contains(script, name) {
+				t.Errorf("%s completion missing flag %q", shell, name)
+			}
+		}
+	}
+}
+
+func TestBashCompletionRegistersFunction(t *testing.T) {
+	script := bashCompletion()
+	if !strings.Contains(script, "complete -F _diceroll_complete diceroll") {
+		t.Errorf("bash completion doesn't register with complete: %s", script)
+	}
+	if !strings.Contains(script, `compgen -W "text json"`) {
+		t.Error("bash completion doesn't offer text/json values for --format")
+	}
+}
+
+func TestZshCompletionIsWellFormed(t *testing.T) {
+	script := zshCompletion()
+	if !strings.HasPrefix(script, "#compdef diceroll\n") {
+		t.Error("zsh completion missing #compdef header")
+	}
+	if !strings.Contains(script, "_arguments") {
+		t.Error("zsh completion doesn't call _arguments")
+	}
+	if !strings.Contains(script, "(text json)") {
+		t.Error("zsh completion doesn't offer text/json values for --format")
+	}
+	if strings.Count(script, "'")%2 != 0 {
+		t.Error("zsh completion has an unbalanced single quote")
+	}
+}
+
+func TestZshEscape(t *testing.T) {
+	got := zshEscape(`plain text`)
+	want := `plain text`
+	if got != want {
+		t.Errorf("zshEscape(%q) = %q, want %q", "plain text", got, want)
+	}
+
+	got = zshEscape(`a [b]: c\d`)
+	want = `a \[b\]\: c\\d`
+	if got != want {
+		t.Errorf("zshEscape produced %q, want %q", got, want)
 	}
 }

@@ -19,6 +19,7 @@ func main() {
 	count := flag.Int("count", 1, "number of times to roll the expression")
 	quiet := flag.Bool("quiet", false, "print only the total for each roll")
 	format := flag.String("format", "text", "output format: text or json")
+	completion := flag.String("completion", "", "print a shell completion script for the named shell (bash or zsh) and exit")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] <notation>\n\n", os.Args[0])
@@ -30,10 +31,21 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s 4dF\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --lenient '2d6 + 1d4'\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --format=json 4d6kh3\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --completion=bash > /etc/bash_completion.d/diceroll\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "\nflags:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *completion != "" {
+		script, err := completionScript(*completion)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(2)
+		}
+		fmt.Print(script)
+		return
+	}
 
 	args := flag.Args()
 	if len(args) != 1 {
@@ -193,6 +205,85 @@ func formatChains(chains [][]int) string {
 		parts[i] = formatChain(chain)
 	}
 	return "[" + strings.Join(parts, " ") + "]"
+}
+
+// completionScript returns a shell completion script for the named shell.
+// Both scripts walk flag.CommandLine (flagWords, flag.VisitAll) rather than
+// hardcoding the flag list, so they can't drift out of sync with main.
+func completionScript(shell string) (string, error) {
+	switch shell {
+	case "bash":
+		return bashCompletion(), nil
+	case "zsh":
+		return zshCompletion(), nil
+	default:
+		return "", fmt.Errorf("--completion must be \"bash\" or \"zsh\", got %q", shell)
+	}
+}
+
+func flagWords() []string {
+	var words []string
+	flag.VisitAll(func(f *flag.Flag) {
+		words = append(words, "--"+f.Name)
+	})
+	return words
+}
+
+func bashCompletion() string {
+	return fmt.Sprintf(`_diceroll_complete() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    case "$prev" in
+        --format)
+            COMPREPLY=( $(compgen -W "text json" -- "$cur") )
+            return 0
+            ;;
+        --completion)
+            COMPREPLY=( $(compgen -W "bash zsh" -- "$cur") )
+            return 0
+            ;;
+    esac
+
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=( $(compgen -W "%s" -- "$cur") )
+    fi
+}
+complete -F _diceroll_complete diceroll
+`, strings.Join(flagWords(), " "))
+}
+
+// zshCompletion builds a _diceroll function for zsh's _arguments. --format
+// and --completion get their fixed value sets; the boolean flags take no
+// argument; everything else falls back to an unconstrained value.
+func zshCompletion() string {
+	var b strings.Builder
+	b.WriteString("#compdef diceroll\n\n_diceroll() {\n    _arguments \\\n")
+	flag.VisitAll(func(f *flag.Flag) {
+		desc := zshEscape(f.Usage)
+		switch f.Name {
+		case "format":
+			fmt.Fprintf(&b, "        '--%s=[%s]:format:(text json)' \\\n", f.Name, desc)
+		case "completion":
+			fmt.Fprintf(&b, "        '--%s=[%s]:shell:(bash zsh)' \\\n", f.Name, desc)
+		case "lenient", "quiet":
+			fmt.Fprintf(&b, "        '--%s[%s]' \\\n", f.Name, desc)
+		default:
+			fmt.Fprintf(&b, "        '--%s=[%s]:%s:' \\\n", f.Name, desc, f.Name)
+		}
+	})
+	b.WriteString("        '*:notation:'\n")
+	b.WriteString("}\n\n_diceroll \"$@\"\n")
+	return b.String()
+}
+
+func zshEscape(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "[", "\\[")
+	s = strings.ReplaceAll(s, "]", "\\]")
+	s = strings.ReplaceAll(s, ":", "\\:")
+	return s
 }
 
 func formatChain(chain []int) string {
