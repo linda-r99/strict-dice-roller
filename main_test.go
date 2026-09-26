@@ -150,6 +150,37 @@ func TestPrintResultJSONRoundTrips(t *testing.T) {
 	}
 }
 
+func TestManPageWellFormed(t *testing.T) {
+	page := manPage()
+	if !strings.HasPrefix(page, ".TH DICEROLL 1 ") {
+		t.Errorf("man page doesn't start with a .TH title line: %s", page)
+	}
+	for _, section := range []string{".SH NAME", ".SH SYNOPSIS", ".SH DESCRIPTION", ".SH OPTIONS", ".SH EXAMPLES", ".SH SEE ALSO"} {
+		if !strings.Contains(page, section) {
+			t.Errorf("man page missing section %q", section)
+		}
+	}
+	for _, name := range []string{"lenient", "seed", "count", "quiet", "format", "completion", "man"} {
+		if !strings.Contains(page, "\\-\\-"+name) {
+			t.Errorf("man page missing flag %q in OPTIONS", name)
+		}
+	}
+}
+
+func TestManEscape(t *testing.T) {
+	got := manEscape(`allow --lenient input`)
+	want := `allow \-\-lenient input`
+	if got != want {
+		t.Errorf("manEscape(%q) = %q, want %q", `allow --lenient input`, got, want)
+	}
+
+	got = manEscape(`a\b`)
+	want = `a\\b`
+	if got != want {
+		t.Errorf("manEscape(%q) = %q, want %q", `a\b`, got, want)
+	}
+}
+
 func TestCompletionScriptUnknownShell(t *testing.T) {
 	if _, err := completionScript("fish"); err == nil {
 		t.Error("completionScript(\"fish\") = nil error, want an error for an unsupported shell")

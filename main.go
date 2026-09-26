@@ -13,6 +13,10 @@ import (
 	"strict-dice-roller/dice"
 )
 
+// manDate is the man page's revision date. Bump it when OPTIONS or
+// EXAMPLES changes meaningfully, not on every commit.
+const manDate = "2026-09-27"
+
 func main() {
 	lenient := flag.Bool("lenient", false, "allow relaxed notation: whitespace, implicit counts (d6 = 1d6), uppercase D, leading zeros, mixed-case modifiers")
 	seed := flag.Int64("seed", 0, "seed the random number generator for reproducible rolls (0 derives a seed from the current time)")
@@ -20,6 +24,7 @@ func main() {
 	quiet := flag.Bool("quiet", false, "print only the total for each roll")
 	format := flag.String("format", "text", "output format: text or json")
 	completion := flag.String("completion", "", "print a shell completion script for the named shell (bash or zsh) and exit")
+	man := flag.Bool("man", false, "print a man page in troff format and exit")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] <notation>\n\n", os.Args[0])
@@ -32,10 +37,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s --lenient '2d6 + 1d4'\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --format=json 4d6kh3\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --completion=bash > /etc/bash_completion.d/diceroll\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --man > /usr/local/share/man/man1/diceroll.1\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "\nflags:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *man {
+		fmt.Print(manPage())
+		return
+	}
 
 	if *completion != "" {
 		script, err := completionScript(*completion)
@@ -205,6 +216,56 @@ func formatChains(chains [][]int) string {
 		parts[i] = formatChain(chain)
 	}
 	return "[" + strings.Join(parts, " ") + "]"
+}
+
+// manPage returns a troff-formatted man page for diceroll. The OPTIONS
+// section walks flag.CommandLine the same way the completion scripts do, so
+// it can't drift out of sync with the flags the program actually accepts.
+func manPage() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, ".TH DICEROLL 1 %q \"diceroll\" \"User Commands\"\n", manDate)
+	b.WriteString(".SH NAME\n")
+	b.WriteString("diceroll \\- parse and roll standard dice notation\n")
+	b.WriteString(".SH SYNOPSIS\n")
+	b.WriteString(".B diceroll\n")
+	b.WriteString("[\\fIflags\\fR] \\fInotation\\fR\n")
+	b.WriteString(".SH DESCRIPTION\n")
+	b.WriteString("diceroll parses dice notation such as\n")
+	b.WriteString(".I 3d6+2\n")
+	b.WriteString("or\n")
+	b.WriteString(".I 4d6kh3\n")
+	b.WriteString("and prints the individual rolls and the total. By default it rejects\n")
+	b.WriteString("notation that a human might type casually but that a parser shouldn't\n")
+	b.WriteString("have to guess about: whitespace, implicit dice counts, uppercase\n")
+	b.WriteString("\\fBD\\fR, and leading zeros. Pass \\fB\\-\\-lenient\\fR to relax those rules.\n")
+	b.WriteString(".SH OPTIONS\n")
+	flag.VisitAll(func(f *flag.Flag) {
+		fmt.Fprintf(&b, ".TP\n.B \\-\\-%s\n%s\n", manEscape(f.Name), manEscape(f.Usage))
+	})
+	b.WriteString(".SH EXAMPLES\n")
+	examples := []struct{ notation, result string }{
+		{"3d6", "[4 2 6] = 12"},
+		{"1d20+5", "[14] + 5 = 19"},
+		{"4d6kh3", "[5 3 6] (dropped [1]) = 14"},
+		{"6d6!", "[3 6+4 2 6+6+1 5 1] = 34"},
+		{"4dF", "[1 -1 0 1] = 1"},
+	}
+	for _, ex := range examples {
+		fmt.Fprintf(&b, ".TP\n.B diceroll %s\n%s\n", manEscape(ex.notation), manEscape(ex.result))
+	}
+	b.WriteString(".SH SEE ALSO\n")
+	b.WriteString("The full grammar, including the keep/drop and explosion rules, is\n")
+	b.WriteString("documented in the project README.\n")
+	return b.String()
+}
+
+// manEscape escapes troff's two special input characters, backslash and
+// hyphen, so flag usage text and example output render as literal text
+// instead of being read as macros or turned into a Unicode minus sign.
+func manEscape(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, "-", `\-`)
+	return s
 }
 
 // completionScript returns a shell completion script for the named shell.

@@ -123,6 +123,7 @@ on dice count, sides, or constants - those apply either way.
   incompatible with `--quiet`.
 - `--completion bash|zsh` - print a shell completion script for the named
   shell and exit.
+- `--man` - print a man page in troff format and exit.
 
 ## Shell completion
 
@@ -134,6 +135,16 @@ $ diceroll --completion=zsh > "${fpath[1]}/_diceroll"
 Both scripts complete flag names and, for `--format` and `--completion`,
 their valid values. They're generated from the same flag definitions the
 program itself parses, so they can't fall out of sync with `--help`.
+
+## Man page
+
+```
+$ diceroll --man > /usr/local/share/man/man1/diceroll.1
+$ man diceroll
+```
+
+The OPTIONS section is generated from the same flag definitions as
+`--help` and the shell completions, so it can't drift out of sync either.
 
 ## Build
 
